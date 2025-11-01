@@ -10,6 +10,7 @@ This module provides the main FaceEmotionModel class that integrates:
 
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from PIL import Image
@@ -325,6 +326,8 @@ def demo_inference(image: Image.Image, model: FaceEmotionModel,
     # Visualize results
     ann = model.visualize_results(image, results, save_path)
     
+    results = pd.DataFrame(results)
+
     return results, ann
 
 
