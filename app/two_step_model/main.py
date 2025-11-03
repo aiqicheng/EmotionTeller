@@ -162,10 +162,12 @@ def inference_pipeline(image: Image.Image, data_folder: str,
     Run inference on a single image.
     
     Args:
-        image_path: Path to input image
-        data_folder: Root data folder path
+        image: Input image
+        data_folder: Root data folder path with the model files
         confidence_threshold: Face detection confidence threshold
         save_visualization: Optional path to save visualization
+    Returns:
+        Detection and classification results and an annotated image
     """
     print("=== Starting Inference Pipeline ===")
     paths = setup_paths(data_folder)

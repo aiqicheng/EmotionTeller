@@ -65,13 +65,13 @@ OUTPUT_DIR = Path("outputs")
 
 CONF_THRES = 0.25
 IOU_THRES  = 0.45
-IMG_SIZE   = 640
+IMG_SIZE   = 1024
 MAX_DET    = 300
 AGNOSTIC_NMS = False
 FP16 = False
 
 def load_yolo_model():
-    WEIGHTS = Path("yolo_model/last.pt")      
+    WEIGHTS = Path("././yolo_training/runs/yolo11m_finetuned2/best.pt")      
     assert WEIGHTS.exists(), f"Model weights not found at {WEIGHTS.resolve()}"
     model = YOLO(str(WEIGHTS))
     return model
