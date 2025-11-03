@@ -308,12 +308,13 @@ def demo_inference(image: Image.Image, model: FaceEmotionModel,
     Run inference on a single image and visualize results.
     
     Args:
-        image_path: Path to input image
+        image: Input image
         model: FaceEmotionModel instance
         save_path: Optional path to save visualization
         
     Returns:
-        Detection and classification results
+        results: Detection and classification results
+        ann: annotated image
     """
     # Load image
     image = pil_to_cv2(image)
