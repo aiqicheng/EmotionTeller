@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+
+emo_dic = {'Neutral':0,'Happy':1,'Surprise':2,'Sad':3,'Angry':4,'Fear':5,'Disgust':6}
 
 def extract_bbox_data(ground_truth_row, prediction_result, cat_class_dict):
     """
@@ -73,22 +76,22 @@ def xywh2xcycwh(x,y,w,h):
     Returns:
         [xc,yc,wc,hc] : the center coordinates for the bounding box.
     """
-  return [x + w/2, y + h/2, w/2, h/2]
+    return [x + w/2, y + h/2, w/2, h/2]
 
 def label(item):
     """
     Generates the label we will save in the .txt file for the YOLO format
 
     Args:
-        item: 
+        item: A row from the dataframe read from the meta_train.csv or meta_test.csv
 
     Returns:
         [xc,yc,wc,hc] : the center coordinates for the bounding box.
     """
-  objs = item['objects']
-  text_label = ''
-  for ind, emotion in enumerate(objs['categories']):
-    x,y,w,h = np.array(objs['bbox'][ind])/100 # Unpack the list into four variables
-    xc,yc,wc,hc = xywh2xcycwh(x,y,w,h) # Pass the four variables to the function
-    text_label += f'{emo_dic[emotion]} {xc} {yc} {wc} {hc}\n'
-  return text_label
+    objs = item['objects']
+    text_label = ''
+    for ind, emotion in enumerate(objs['categories']):
+        x,y,w,h = np.array(objs['bbox'][ind])/100 # Unpack the list into four variables
+        xc,yc,wc,hc = xywh2xcycwh(x,y,w,h) # Pass the four variables to the function
+        text_label += f'{emo_dic[emotion]} {xc} {yc} {wc} {hc}\n'
+    return text_label
