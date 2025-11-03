@@ -1,0 +1,14 @@
+# 20/20 iterations complete ✅ (2737.34s)
+# Results saved to /content/drive/Othercomputers/My Computer (1)/EmotionTeller-github/YOLO_training/tune/tune2
+# Best fitness=0.03025 observed at iteration 3
+# Best fitness metrics are {'metrics/precision(B)': 0.1473, 'metrics/recall(B)': 0.15749, 'metrics/mAP50(B)': 0.09038, 'metrics/mAP50-95(B)': 0.03025, 'val/box_loss': 0.06735, 'val/cls_loss': 2.66276, 'val/dfl_loss': 1.56853, 'fitness': 0.03025}
+# Best fitness model is /content/drive/Othercomputers/My Computer (1)/EmotionTeller-github/YOLO_training/tune/train
+lr0: 0.01
+degrees: 45.0
+translate: 0.08829
+scale: 0.68767
+shear: 0.0
+fliplr: 0.55305
+flipud: 0.0
+box: 0.2
+cls: 0.5
