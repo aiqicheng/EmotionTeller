@@ -45,10 +45,9 @@ if st.session_state.mode == "upload":
     st.session_state.uploaded_file = uploaded_file
 
     if uploaded_file is not None:
+        st.subheader("Selected image:")
+        st.image(uploaded_file, width='stretch')
         pil_image = Image.open(uploaded_file)
-        st.write("-- Selected image --")
-        st.image(pil_image, caption="Uploaded Image", width='stretch')
-        
         model_choice = st.selectbox(
             "Select a model to use:",
             ("YOLOv11", "Two-Step-Model"),
@@ -93,10 +92,9 @@ elif st.session_state.mode == "webcam":
     st.session_state.pic = pic
 
     if pic is not None:
-        pil_image = Image.open(pic)
-        st.write("-- Selected image --")
-        st.image(pil_image, caption="Uploaded Image", width='stretch')
-    
+        st.subheader("Captured Image:")
+        st.image(pic, width='stretch')
+        pil_image = Image.open(pic)    
         model_choice = st.selectbox(
             "Select a model to use:",
             ("YOLOv11", "Two-Step-Model"),

@@ -71,7 +71,7 @@ AGNOSTIC_NMS = False
 FP16 = False
 
 def load_yolo_model():
-    WEIGHTS = Path("././yolo_training/runs/yolo11m_finetuned2/best.pt")      
+    WEIGHTS = Path("../YOLO_training/runs/yolo11m_finetuned2/weights/best.pt")      
     assert WEIGHTS.exists(), f"Model weights not found at {WEIGHTS.resolve()}"
     model = YOLO(str(WEIGHTS))
     return model
