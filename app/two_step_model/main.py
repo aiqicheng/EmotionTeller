@@ -47,8 +47,7 @@ def setup_paths(data_folder: str) -> Dict[str, str]:
         'train_meta': str(data_folder / "train_meta.csv"),
         'test_meta': str(data_folder / "test_meta.csv"),
         'faces_meta': str(data_folder / "FACES_headshots_6classes" / "facesdata.csv"),
-        'prototxt': str(model_folder / "deploy.prototxt"),
-        'weights': str(model_folder / "res10_300x300_ssd_iter_140000.caffemodel"),
+        'face_detection_model': str(model_folder / "yolo11n-face-best.pt"),
         'emotion_model': str(model_folder / "best_overall.pt"),
         'cropped_folder': str(model_folder / "cropped_single"),
         'train_crops': str(model_folder / "trainval_with_crops.csv"),
@@ -85,7 +84,7 @@ def train_pipeline(data_folder: str, epochs: int = 20, batch_size: int = 16,
         print("Running face detection on dataset...")
         process_dataset_detection(
             paths['train_meta'], paths['image_folder'],
-            paths['prototxt'], paths['weights'],
+            paths['face_detection_model'],
             paths['detection_results']
         )
     else:
@@ -181,7 +180,7 @@ def inference_pipeline(image: Image.Image, data_folder: str,
     # Create model
     print("Loading models...")
     model = create_face_emotion_model(
-        paths['prototxt'], paths['weights'], paths['emotion_model'],
+        paths['face_detection_model'], paths['emotion_model'],
         confidence_threshold
     )
     
@@ -215,7 +214,7 @@ def batch_inference(image_folder: str, data_folder: str,
     # Create model
     print("Loading models...")
     model = create_face_emotion_model(
-        paths['prototxt'], paths['weights'], paths['emotion_model'],
+        paths['face_detection_model'], paths['emotion_model'],
         confidence_threshold
     )
     
@@ -306,7 +305,7 @@ def demo_pipeline(data_folder: str, confidence_threshold: float = 0.2):
     # Create model
     print("Loading models...")
     model = create_face_emotion_model(
-        paths['prototxt'], paths['weights'], paths['emotion_model'],
+        paths['face_detection_model'], paths['emotion_model'],
         confidence_threshold
     )
     

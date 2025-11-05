@@ -246,8 +246,7 @@ class FaceEmotionModel(nn.Module):
         """
         info = {
             'face_detector': {
-                'prototxt_path': self.face_detector.prototxt_path,
-                'weights_path': self.face_detector.weights_path,
+                'model_path': self.face_detector.model_path,
                 'confidence_threshold': self.face_detector.confidence_threshold
             },
             'emotion_classifier': {
@@ -260,7 +259,7 @@ class FaceEmotionModel(nn.Module):
         return info
 
 
-def create_face_emotion_model(prototxt_path: str, weights_path: str, 
+def create_face_emotion_model(model_path: str, 
                              emotion_model_path: str, 
                              confidence_threshold: float = 0.2,
                              device: str = None) -> FaceEmotionModel:
@@ -268,8 +267,7 @@ def create_face_emotion_model(prototxt_path: str, weights_path: str,
     Create a FaceEmotionModel with pre-trained components.
     
     Args:
-        prototxt_path: Path to face detection prototxt file
-        weights_path: Path to face detection weights file
+        model_path: Path to YOLO face detection model (.pt)
         emotion_model_path: Path to trained emotion classification model
         confidence_threshold: Face detection confidence threshold
         device: Device for emotion classifier
@@ -278,7 +276,7 @@ def create_face_emotion_model(prototxt_path: str, weights_path: str,
         Initialized FaceEmotionModel
     """
     # Initialize face detector
-    face_detector = FaceDetector(prototxt_path, weights_path, confidence_threshold)
+    face_detector = FaceDetector(model_path, confidence_threshold)
     
     # Initialize emotion classifier
     emotion_classifier = EmotionClassifier(device)
@@ -338,12 +336,11 @@ if __name__ == "__main__":
     model_folder = data_folder + "/BaselineModels/"
     
     # Model paths
-    prototxt_path = model_folder + "deploy.prototxt"
-    weights_path = model_folder + "res10_300x300_ssd_iter_140000.caffemodel"
+    model_path = model_folder + "yolo11n-face-best.pt"
     emotion_model_path = model_folder + "best_overall.pt"
     
     # Create model
-    model = create_face_emotion_model(prototxt_path, weights_path, emotion_model_path)
+    model = create_face_emotion_model(model_path, emotion_model_path)
     
     # Get model info
     info = model.get_model_info()

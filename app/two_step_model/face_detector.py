@@ -2,7 +2,7 @@
 Face Detection Module
 Extracted from DetectionBaseline.ipynb
 
-This module provides face detection functionality using OpenCV DNN with SSD ResNet10 model.
+This module provides face detection functionality using YOLO model.
 """
 
 import cv2
@@ -14,41 +14,47 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Union
 
+try:
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO_AVAILABLE = False
+    print("Warning: ultralytics not available. Install with: pip install ultralytics")
+
 
 class FaceDetector:
     """
-    Face detector using OpenCV DNN with SSD ResNet10 model.
+    Face detector using YOLO model.
     
     This class provides functionality to:
-    - Load pretrained face detection model
+    - Load pretrained YOLO face detection model
     - Detect faces in images
     - Evaluate detection performance using IoU metrics
     """
     
-    def __init__(self, prototxt_path: str, weights_path: str, confidence_threshold: float = 0.2):
+    def __init__(self, model_path: str, confidence_threshold: float = 0.2):
         """
         Initialize the face detector.
         
         Args:
-            prototxt_path: Path to the network configuration file (deploy.prototxt)
-            weights_path: Path to the pre-trained weights file (.caffemodel)
+            model_path: Path to the YOLO model file (.pt)
             confidence_threshold: Minimum confidence for face detection
         """
-        self.prototxt_path = prototxt_path
-        self.weights_path = weights_path
+        if not YOLO_AVAILABLE:
+            raise ImportError("ultralytics package is required. Install with: pip install ultralytics")
+        
+        self.model_path = model_path
         self.confidence_threshold = confidence_threshold
-        self.net = None
+        self.model = None
         self._load_model()
     
     def _load_model(self):
         """Load the face detection model."""
-        if not os.path.exists(self.prototxt_path):
-            raise FileNotFoundError(f"Prototxt file not found: {self.prototxt_path}")
-        if not os.path.exists(self.weights_path):
-            raise FileNotFoundError(f"Weights file not found: {self.weights_path}")
+        if not os.path.exists(self.model_path):
+            raise FileNotFoundError(f"YOLO model file not found: {self.model_path}")
         
-        self.net = cv2.dnn.readNetFromCaffe(self.prototxt_path, self.weights_path)
-        print(f"Face detection model loaded successfully")
+        self.model = YOLO(self.model_path)
+        print(f"Face detection model loaded successfully from {self.model_path}")
     
     def detect_faces(self, image: np.ndarray) -> List[List[float]]:
         """
@@ -60,36 +66,38 @@ class FaceDetector:
         Returns:
             List of bounding boxes in percentage format [x%, y%, w%, h%]
         """
-        if self.net is None:
+        if self.model is None:
             raise RuntimeError("Model not loaded. Call _load_model() first.")
         
         (h, w) = image.shape[:2]
         
-        # Create blob and forward pass through net
-        blob = cv2.dnn.blobFromImage(
-            cv2.resize(image, (300, 300)), 
-            1.0,
-            (300, 300), 
-            (104.0, 177.0, 123.0)
+        # YOLO expects RGB format, convert BGR to RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # Run YOLO inference
+        results = self.model.predict(
+            source=image_rgb,
+            conf=self.confidence_threshold,
+            verbose=False
         )
-        self.net.setInput(blob)
-        detections = self.net.forward()
         
         # Collect detections
         bboxes = []
-        for j in range(0, detections.shape[2]):
-            confidence = detections[0, 0, j, 2]
-            if confidence > self.confidence_threshold:
-                box = detections[0, 0, j, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype(int)
+        if results and len(results) > 0:
+            result = results[0]
+            if result.boxes is not None and len(result.boxes) > 0:
+                boxes = result.boxes.xyxy.cpu().numpy()  # [x1, y1, x2, y2] format
                 
-                # Convert to percentage of width/height * 100
-                x_pct = 100 * startX / w
-                y_pct = 100 * startY / h
-                w_pct = 100 * (endX - startX) / w
-                h_pct = 100 * (endY - startY) / h
-                box_pct = np.array([x_pct, y_pct, w_pct, h_pct], dtype=float).tolist()
-                bboxes.append(box_pct)
+                for box in boxes:
+                    x1, y1, x2, y2 = box
+                    
+                    # Convert to percentage of width/height * 100
+                    x_pct = 100 * x1 / w
+                    y_pct = 100 * y1 / h
+                    w_pct = 100 * (x2 - x1) / w
+                    h_pct = 100 * (y2 - y1) / h
+                    box_pct = np.array([x_pct, y_pct, w_pct, h_pct], dtype=float).tolist()
+                    bboxes.append(box_pct)
         
         return bboxes
     
@@ -285,7 +293,7 @@ class FaceDetector:
 
 
 def process_dataset_detection(metadata_csv: str, image_folder: str, 
-                             prototxt_path: str, weights_path: str,
+                             model_path: str,
                              output_csv: str = None, confidence_threshold: float = 0.2) -> pd.DataFrame:
     """
     Process a dataset for face detection evaluation.
@@ -293,15 +301,14 @@ def process_dataset_detection(metadata_csv: str, image_folder: str,
     Args:
         metadata_csv: Path to CSV file with image metadata
         image_folder: Folder containing images
-        prototxt_path: Path to face detection model prototxt
-        weights_path: Path to face detection model weights
+        model_path: Path to YOLO face detection model (.pt)
         output_csv: Optional path to save results
         confidence_threshold: Detection confidence threshold
         
     Returns:
         DataFrame with detection results
     """
-    detector = FaceDetector(prototxt_path, weights_path, confidence_threshold)
+    detector = FaceDetector(model_path, confidence_threshold)
     
     # Load dataframe
     df = pd.read_csv(metadata_csv)
@@ -341,18 +348,17 @@ if __name__ == "__main__":
     data_folder = "/content/drive/MyDrive/emo/"
     model_folder = data_folder + "/BaselineModels/"
     
-    prototxt_path = model_folder + "deploy.prototxt"
-    weights_path = model_folder + "res10_300x300_ssd_iter_140000.caffemodel"
+    model_path = model_folder + "yolo11n-face-best.pt"
     
     # Initialize detector
-    detector = FaceDetector(prototxt_path, weights_path)
+    detector = FaceDetector(model_path)
     
     # Process dataset
     df_path = data_folder + "train_meta.csv"
     image_folder = data_folder + "ImageData/"
     output_csv = model_folder + "detection.csv"
     
-    results = process_dataset_detection(df_path, image_folder, prototxt_path, weights_path, output_csv)
+    results = process_dataset_detection(df_path, image_folder, model_path, output_csv)
     
     # Evaluate performance
     metrics = detector.evaluate_detection(results)
