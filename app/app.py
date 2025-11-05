@@ -3,6 +3,7 @@ from PIL import Image
 import pandas as pd
 from yolo_model.model import model_output
 from two_step_model.main import inference_pipeline
+from two_step_model import two_step_pipeline
 from pathlib import Path
 
 st.set_page_config(page_title="Emotion Teller", layout="centered")
@@ -72,12 +73,10 @@ if st.session_state.mode == "upload":
             elif model_choice == "Two-Step-Model": 
                 if st.button("Run"):
                     st.info("⏳ Running the selected model, please wait...")
-                    df, annotated_img = inference_pipeline(
-                        data_folder= 'two_step_model'
-                        ,image= pil_image
-                        )
+                    res = two_step_pipeline.run_on_image(pil_image)
+                    df = two_step_pipeline.faces_to_df(res)
                     if len(df) != 0:
-                        annotated_img = annotated_img[:, :, ::-1]
+                        annotated_img = Image(filename=res["visualization_path"])
                         st.image(annotated_img, caption="Annotated Output", width='stretch')
                         st.dataframe(df)
                     else:
