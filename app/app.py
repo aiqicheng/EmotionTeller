@@ -17,6 +17,29 @@ background: -webkit-linear-gradient(#ff4b1f, #1fddff);
 </h1>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+div.stButton > button:first-child {
+    background: #00fff2;
+    color: white;
+    border-radius: 12px;
+    font-size: 1.1em;
+    font-weight: bold;
+    box-shadow: 0 0 20px #1fddff;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { box-shadow: 0 0 5px #1fddff; }
+    50% { box-shadow: 0 0 20px #1fddff; }
+    100% { box-shadow: 0 0 5px #1fddff; }
+}
+div.stButton > button:hover {
+    background: linear-gradient(90deg, #1fddff, #ff4b1f);
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 no_face_message = "🥲 Oops! Face not detected or emotions couldn't be sensed confidently 😓"
 
 if 'mode' not in st.session_state:
@@ -57,7 +80,7 @@ if st.session_state.mode == "upload":
         if model_choice is not None:
             if model_choice == "YOLOv11":
                 model_runner = model_output(webcam=False)
-                if st.button("Run"):
+                if st.button("🚀 Run Model"):
                     st.info("⏳ Running the selected model, please wait...")
                     orig_img, annotated_img, df = model_runner.run_model(pil_image)
                     if len(df) != 0:
@@ -70,7 +93,7 @@ if st.session_state.mode == "upload":
                             </div>
                             """, unsafe_allow_html=True)
             elif model_choice == "Two-Step-Model": 
-                if st.button("Run"):
+                if st.button("🚀 Run Model"):
                     st.info("⏳ Running the selected model, please wait...")
                     df, annotated_img = inference_pipeline(
                         data_folder= 'two_step_model'
@@ -104,7 +127,7 @@ elif st.session_state.mode == "webcam":
         if model_choice is not None:
             if model_choice == "YOLOv11":
                 model_runner = model_output(webcam=True)
-                if st.button("Run"):
+                if st.button("🚀 Run Model"):
                     st.info("⏳ Running the selected model, please wait...")
                     orig_img, annotated_img, df = model_runner.run_model(pil_image)
                     if len(df) != 0:
@@ -117,7 +140,7 @@ elif st.session_state.mode == "webcam":
                             </div>
                             """, unsafe_allow_html=True)
             elif model_choice == "Two-Step-Model": 
-                if st.button("Run"):
+                if st.button("🚀 Run Model"):
                     st.info("⏳ Running the selected model, please wait...")
                     df, annotated_img = inference_pipeline(
                         data_folder= 'two_step_model'
@@ -136,8 +159,9 @@ elif st.session_state.mode == "webcam":
 else:
     st.info("👆 Choose ‘Upload Image’ or ‘Capture Photo’ to get started.")
 
-with st.expander("ℹ️ How it works"):
-    st.write("This app uses fine-tuned vision models to classify facial expressions into emotions. Just click or upload an image, choose a model from the dropdown, hit run, and watch the magic happen")
+
+
+
 
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center;'>Built with ❤️ using Streamlit & Fine-tuned Vision Models</p>", unsafe_allow_html=True)
