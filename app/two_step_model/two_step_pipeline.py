@@ -1,6 +1,7 @@
 # pipeline.py
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Union
+from PIL import Image
 import json, csv, math
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 import cv2
+
 
 # --- Detector (Ultralytics YOLO) ---
 from ultralytics import YOLO  # pip install ultralytics
@@ -322,7 +324,7 @@ def run_on_image(img_path: str, det_model, cls_model, cfg: Config) -> Dict[str, 
             cv2.rectangle(canvas, (x1, y1 - th - 6), (x1 + tw + 4, y1), (0, 255, 0), -1)
             cv2.putText(canvas, label, (x1 + 2, y1 - 4),
                         cv2.FONT_HERSHEY_SIMPLEX, cfg.font_scale, (0, 0, 0), cfg.font_thickness, cv2.LINE_AA)
-        vis_path = str(Path(img_path).with_suffix(".annotated.jpg"))
+        vis_path = str(Path(img_path.replace(".", "_annotated.")))
         cv2.imwrite(vis_path, canvas)
 
     return {

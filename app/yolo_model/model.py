@@ -61,7 +61,6 @@ def save_df(df: pd.DataFrame, path: Path):
 
 DEVICES = get_available_devices()
 DEVICE = DEVICES[0] 
-OUTPUT_DIR = Path("outputs")
 
 CONF_THRES = 0.25
 IOU_THRES  = 0.45
@@ -88,12 +87,8 @@ def upload_image(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFr
     res = results_list[0]
     ann = annotate_image(res)
     df = results_to_df(res)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_img = OUTPUT_DIR / "uploaded_annotated.jpg"
-    ann.save(out_img)
-    if not df.empty:
-        save_df(df, OUTPUT_DIR / "uploaded_detections.csv")
-    return img, ann, df
+
+    return ann, df
 
 def webcam(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], None]:
     img = image.convert("RGB")
@@ -106,13 +101,7 @@ def webcam(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], 
     res = results_list[0]
     ann = annotate_image(res)
     df = results_to_df(res)
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_img = OUTPUT_DIR / "webcam_snapshot_annotated.jpg"
-    ann.save(out_img)
-    if not df.empty:
-        save_df(df, OUTPUT_DIR / "webcam_snapshot_detections.csv")
-    return img, ann, df
+    return ann, df
 
 
 class model_output():
