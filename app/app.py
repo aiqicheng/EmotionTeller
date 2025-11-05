@@ -106,7 +106,7 @@ def app_processing(uploaded_file):
                     cfg
                     )
                 annotated_img = Image.open(uploaded_file.replace(".", "_annotated."))
-                df = two_step_pipeline.faces_to_df(result).drop(columns=['image_path'])
+                df = two_step_pipeline.faces_to_df(result).drop(columns=['image_path', 'prob_of_emotion'])
                 df.to_csv(uploaded_file.split(".", 1)[0] + ".csv")
                 if len(df) != 0:
                     st.image(annotated_img, caption="Annotated Output", width='stretch')

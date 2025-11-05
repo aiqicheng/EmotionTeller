@@ -51,9 +51,50 @@ def results_to_df(results) -> pd.DataFrame:
         })
     return pd.DataFrame(rows)
 
-def annotate_image(results) -> Image.Image:
-    """Return annotated PIL image from Ultralytics results."""
-    return Image.fromarray(results.plot())
+def _expand_and_clip_box(xyxy: np.ndarray, expand: float, W: int, H: int) -> np.ndarray:
+    x1, y1, x2, y2 = xyxy
+    w = x2 - x1
+    h = y2 - y1
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
+    # make it square then expand
+    side = max(w, h) * expand
+    x1n = max(0, int(round(cx - side/2)))
+    y1n = max(0, int(round(cy - side/2)))
+    x2n = min(W-1, int(round(cx + side/2)))
+    y2n = min(H-1, int(round(cy + side/2)))
+    return np.array([x1n, y1n, x2n, y2n], dtype=np.int32)
+
+import cv2
+def annotate_image(res) -> Image.Image:
+    expand_factor = 1.3
+    font_scale = 0.6
+    font_thickness = 1
+    H, W = res.plot().shape[:2]
+    boxes_xyxy = res.boxes.xyxy.cpu().numpy().astype(np.float32)
+    confs = res.boxes.conf.cpu().numpy().astype(np.float32)
+    emo_dic = {0:'Neutral',1:'Happy',2:'Surprise',3:'Sad',4:'Angry',5:'Fear',6:'Disgust'}
+    emotions = [emo_dic[int(x)] for x in res.boxes.cls.tolist()]
+    faces = []
+    for i, (xyxy, score, emotion) in enumerate(zip(boxes_xyxy, confs, emotions)):
+        xyxy_exp = _expand_and_clip_box(xyxy, expand_factor, W, H)
+        faces.append({
+            "det_idx": i,
+            "xyxy_exp": xyxy_exp.tolist(),
+            "det_conf": float(score),
+            "emotion": emotion 
+        })
+    canvas = cv2.cvtColor(res.orig_img.copy(), cv2.COLOR_BGR2RGB) 
+    for f in faces:
+        x1, y1, x2, y2 = map(int, f["xyxy_exp"])
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        label = f'{f["emotion"]} ({f["det_conf"]:.2f})'
+        (tw, th), bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
+        cv2.rectangle(canvas, (x1, y1 - th - 6), (x1 + tw + 4, y1), (0, 255, 0), -1)
+        cv2.putText(canvas, label, (x1 + 2, y1 - 4),
+            cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+    custom_img = Image.fromarray(cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB))
+    return custom_img
 
 def save_df(df: pd.DataFrame, path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
