@@ -1,8 +1,8 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
-from yolo_model.model import model_output
-from two_step_model.main import inference_pipeline
+from yolo_model.model import run_model
+from two_step_model import two_step_pipeline
 from pathlib import Path
 
 st.set_page_config(page_title="Emotion Teller", layout="centered")
@@ -40,6 +40,89 @@ div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 
+## -- helper functions --
+import os
+def save_on_disk(uploaded_file):
+    """
+    Empties the inputs folder, save the uploaded or captured image and returns
+    the path
+
+    Args:
+        uploaded_file: path in working memory
+    
+    Returns:
+        save_path: path of disk
+    """
+    folder = "inputs"
+
+    for filename in os.listdir(folder):
+        os.remove(os.path.join(folder, filename))
+    save_path = os.path.join(folder, f"input_{uploaded_file.type.replace("/", ".")}")
+
+    # Write file to disk
+    with open(save_path, "wb") as f:
+        f.write(uploaded_file.read())
+    return save_path
+
+def app_processing(uploaded_file):
+    uploaded_file = save_on_disk(uploaded_file)
+    ext = uploaded_file.split(".", 1)[1]
+    ann_img_path = "inputs/annotated_output_image." + ext
+    face_df_path = "inputs/faces_data.csv"
+    model_choice = st.selectbox(
+        "Select a model to use:",
+        ("YOLOv11", "Two-Step-Model"),
+        index=None,  # None = no pre-selection
+        placeholder="Choose a model..."
+    )
+    if model_choice is not None:
+        if model_choice == "YOLOv11":
+            if st.button("🚀 Run Model"):
+                st.info("⏳ Running the selected model, please wait...")
+                pil_image = Image.open(uploaded_file)  
+                annotated_img, df = run_model(pil_image)
+                annotated_img.save(ann_img_path)
+                df.to_csv(face_df_path)
+                if len(df) != 0:
+                    st.image(annotated_img, caption="Annotated Output", width='stretch')
+                    st.dataframe(df)
+                else:
+                    st.markdown(f"""
+                        <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
+                        <b> {no_face_message}
+                        </div>
+                        """, unsafe_allow_html=True)
+        elif model_choice == "Two-Step-Model": 
+            if st.button("🚀 Run Model"):
+                st.info("⏳ Running the selected model, please wait...")
+                cfg = two_step_pipeline.Config(
+                    detector_path = 'two_step_model/BaselineModels/yolo11n-face-best.pt',
+                    classifier_path= 'two_step_model/BaselineModels/best_overall.pt'
+                )
+                det_model = two_step_pipeline.load_detector(cfg)
+                cls_model = two_step_pipeline.load_classifier(cfg)
+                result = two_step_pipeline.run_on_image(
+                    uploaded_file,
+                    det_model,
+                    cls_model,
+                    cfg
+                    )
+                annotated_img = Image.open(uploaded_file.replace(".", "_annotated."))
+                annotated_img.save(ann_img_path)
+                os.remove(uploaded_file.replace(".", "_annotated."))
+                df = two_step_pipeline.faces_to_df(result).drop(columns=['image_path', 'prob_of_emotion'])
+                df.to_csv(face_df_path)
+                if len(df) != 0:
+                    st.image(annotated_img, caption="Annotated Output", width='stretch')
+                    st.dataframe(df)
+                else:
+                    st.markdown(f"""
+                        <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
+                        <b> {no_face_message}
+                        </div>
+                        """, unsafe_allow_html=True)
+
+
 no_face_message = "🥲 Oops! Face not detected or emotions couldn't be sensed confidently 😓"
 
 if 'mode' not in st.session_state:
@@ -70,95 +153,19 @@ if st.session_state.mode == "upload":
     if uploaded_file is not None:
         st.subheader("Selected image:")
         st.image(uploaded_file, width='stretch')
-        pil_image = Image.open(uploaded_file)
-        model_choice = st.selectbox(
-            "Select a model to use:",
-            ("YOLOv11", "Two-Step-Model"),
-            index=None,  # None = no pre-selection
-            placeholder="Choose a model..."
-        )
-        if model_choice is not None:
-            if model_choice == "YOLOv11":
-                model_runner = model_output(webcam=False)
-                if st.button("🚀 Run Model"):
-                    st.info("⏳ Running the selected model, please wait...")
-                    orig_img, annotated_img, df = model_runner.run_model(pil_image)
-                    if len(df) != 0:
-                        st.image(annotated_img, caption="Annotated Output", width='stretch')
-                        st.dataframe(df)
-                    else:
-                        st.markdown(f"""
-                            <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
-                            <b> {no_face_message}
-                            </div>
-                            """, unsafe_allow_html=True)
-            elif model_choice == "Two-Step-Model": 
-                if st.button("🚀 Run Model"):
-                    st.info("⏳ Running the selected model, please wait...")
-                    df, annotated_img = inference_pipeline(
-                        data_folder= 'two_step_model'
-                        ,image= pil_image
-                        )
-                    if len(df) != 0:
-                        annotated_img = annotated_img[:, :, ::-1]
-                        st.image(annotated_img, caption="Annotated Output", width='stretch')
-                        st.dataframe(df)
-                    else:
-                        st.markdown(f"""
-                            <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
-                            <b> {no_face_message}
-                            </div>
-                            """, unsafe_allow_html=True)
+        app_processing(uploaded_file)
 
 elif st.session_state.mode == "webcam":
-    pic = st.camera_input("Capture an image")
-    st.session_state.pic = pic
+    uploaded_file = st.camera_input("Capture an image")
+    st.session_state.uploaded_file = uploaded_file
 
-    if pic is not None:
+    if uploaded_file is not None:
         st.subheader("Captured Image:")
-        st.image(pic, width='stretch')
-        pil_image = Image.open(pic)    
-        model_choice = st.selectbox(
-            "Select a model to use:",
-            ("YOLOv11", "Two-Step-Model"),
-            index=None,  # None = no pre-selection
-            placeholder="Choose a model..."
-        )
-        if model_choice is not None:
-            if model_choice == "YOLOv11":
-                model_runner = model_output(webcam=True)
-                if st.button("🚀 Run Model"):
-                    st.info("⏳ Running the selected model, please wait...")
-                    orig_img, annotated_img, df = model_runner.run_model(pil_image)
-                    if len(df) != 0:
-                        st.image(annotated_img, caption="Annotated Output", width='stretch')
-                        st.dataframe(df)
-                    else:
-                        st.markdown(f"""
-                            <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
-                            <b> {no_face_message}
-                            </div>
-                            """, unsafe_allow_html=True)
-            elif model_choice == "Two-Step-Model": 
-                if st.button("🚀 Run Model"):
-                    st.info("⏳ Running the selected model, please wait...")
-                    df, annotated_img = inference_pipeline(
-                        data_folder= 'two_step_model'
-                        ,image= pil_image
-                        )
-                    if len(df) != 0:
-                        annotated_img = annotated_img[:, :, ::-1]
-                        st.image(annotated_img, caption="Annotated Output", width='stretch')
-                        st.dataframe(df)
-                    else:
-                        st.markdown(f"""
-                            <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
-                            <b> {no_face_message}
-                            </div>
-                            """, unsafe_allow_html=True)
+        st.image(uploaded_file, width='stretch')
+        app_processing(uploaded_file)  
+       
 else:
     st.info("👆 Choose ‘Upload Image’ or ‘Capture Photo’ to get started.")
-
 
 
 

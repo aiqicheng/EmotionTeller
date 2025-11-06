@@ -1,4 +1,6 @@
 Data/
 \data
 \.venv
-
+__pycache__/
+*.py[cod]
+*.jpg
