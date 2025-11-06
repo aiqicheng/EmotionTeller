@@ -109,7 +109,7 @@ def annotate_image(res) -> Image.Image:
                 label_y = y1 + (y2 - y1)//2
                 box_top = label_y - th//2 - 3
                 box_bottom = label_y + th//2 + 3
-            # Else middle-left (fallback)
+            # Else middle-left
             elif x1 - tw - 6 > 0:
                 label_x = x1 - tw - 6
                 label_y = y1 + (y2 - y1)//2
@@ -121,7 +121,7 @@ def annotate_image(res) -> Image.Image:
 
         # Draw text
         cv2.putText(canvas, label, (label_x, label_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, cfg.font_scale, (0, 0, 0), cfg.font_thickness, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
     custom_img = Image.fromarray(cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB))
     return custom_img
 
@@ -146,7 +146,7 @@ def load_yolo_model():
     return model
 
 
-def upload_image(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], None]:
+def run_inference(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], None]:
     img = image.convert("RGB")
     results_list = model.predict(
         source=np.array(img),
@@ -159,30 +159,8 @@ def upload_image(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFr
     df = results_to_df(res)
 
     return ann, df
-
-def webcam(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], None]:
-    img = image.convert("RGB")
-    results_list = model.predict(
-        source=np.array(img),
-        conf=CONF_THRES, iou=IOU_THRES, device=DEVICE,
-        imgsz=int(IMG_SIZE), max_det=int(MAX_DET),
-        agnostic_nms=AGNOSTIC_NMS, half=FP16, verbose=False
-    )
-    res = results_list[0]
-    ann = annotate_image(res)
-    df = results_to_df(res)
-    return ann, df
-
-
-class model_output():
-    def __init__(self,  
-                 webcam: bool = False):
-        self.webcam = webcam
     
-    def run_model(self, image: Image.Image = None):
-        model = load_yolo_model()
-        if self.webcam:
-            return upload_image(model, image)
-        else:
-            return webcam(model, image)
-        
+def run_model(image: Image.Image = None):
+    model = load_yolo_model()
+    return run_inference(model, image)
+    

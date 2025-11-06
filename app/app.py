@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
-from yolo_model.model import model_output
+from yolo_model.model import run_model
 from two_step_model import two_step_pipeline
 from pathlib import Path
 
@@ -66,6 +66,9 @@ def save_on_disk(uploaded_file):
 
 def app_processing(uploaded_file):
     uploaded_file = save_on_disk(uploaded_file)
+    ext = uploaded_file.split(".", 1)[1]
+    ann_img_path = "inputs/annotated_output_image." + ext
+    face_df_path = "inputs/faces_data.csv"
     model_choice = st.selectbox(
         "Select a model to use:",
         ("YOLOv11", "Two-Step-Model"),
@@ -74,13 +77,12 @@ def app_processing(uploaded_file):
     )
     if model_choice is not None:
         if model_choice == "YOLOv11":
-            model_runner = model_output(webcam=False)
             if st.button("🚀 Run Model"):
                 st.info("⏳ Running the selected model, please wait...")
                 pil_image = Image.open(uploaded_file)  
-                annotated_img, df = model_runner.run_model(pil_image)
-                annotated_img.save(uploaded_file.replace(".", "_annotated."))
-                df.to_csv(uploaded_file.split(".", 1)[0] + ".csv")
+                annotated_img, df = run_model(pil_image)
+                annotated_img.save(ann_img_path)
+                df.to_csv(face_df_path)
                 if len(df) != 0:
                     st.image(annotated_img, caption="Annotated Output", width='stretch')
                     st.dataframe(df)
@@ -106,8 +108,10 @@ def app_processing(uploaded_file):
                     cfg
                     )
                 annotated_img = Image.open(uploaded_file.replace(".", "_annotated."))
+                annotated_img.save(ann_img_path)
+                os.remove(uploaded_file.replace(".", "_annotated."))
                 df = two_step_pipeline.faces_to_df(result).drop(columns=['image_path', 'prob_of_emotion'])
-                df.to_csv(uploaded_file.split(".", 1)[0] + ".csv")
+                df.to_csv(face_df_path)
                 if len(df) != 0:
                     st.image(annotated_img, caption="Annotated Output", width='stretch')
                     st.dataframe(df)
@@ -162,8 +166,6 @@ elif st.session_state.mode == "webcam":
        
 else:
     st.info("👆 Choose ‘Upload Image’ or ‘Capture Photo’ to get started.")
-
-
 
 
 
