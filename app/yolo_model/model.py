@@ -84,15 +84,44 @@ def annotate_image(res) -> Image.Image:
             "det_conf": float(score),
             "emotion": emotion 
         })
-    canvas = cv2.cvtColor(res.orig_img.copy(), cv2.COLOR_BGR2RGB) 
+    canvas = cv2.cvtColor(res.orig_img.copy(), cv2.COLOR_RGB2BGR)  
     for f in faces:
         x1, y1, x2, y2 = map(int, f["xyxy_exp"])
         cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 0), 2)
         label = f'{f["emotion"]} ({f["det_conf"]:.2f})'
         (tw, th), bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
-        cv2.rectangle(canvas, (x1, y1 - th - 6), (x1 + tw + 4, y1), (0, 255, 0), -1)
-        cv2.putText(canvas, label, (x1 + 2, y1 - 4),
-            cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+        # --- Determine label placement dynamically ---
+        # Default: top-left
+        label_x, label_y = x1 + 2, y1 - 4
+        box_top = y1 - th - 6
+        box_bottom = y1
+
+        # If no space above (text would go off-frame)
+        if box_top < 0:
+            # Try bottom-left
+            if y2 + th + 6 < H:
+                label_y = y2 + th + 4
+                box_top = y2
+                box_bottom = y2 + th + 6
+            # If also no space at bottom, try middle-right
+            elif x2 + tw + 6 < W:
+                label_x = x2 + 6
+                label_y = y1 + (y2 - y1)//2
+                box_top = label_y - th//2 - 3
+                box_bottom = label_y + th//2 + 3
+            # Else middle-left (fallback)
+            elif x1 - tw - 6 > 0:
+                label_x = x1 - tw - 6
+                label_y = y1 + (y2 - y1)//2
+                box_top = label_y - th//2 - 3
+                box_bottom = label_y + th//2 + 3
+
+        # Draw filled background rectangle
+        cv2.rectangle(canvas, (label_x - 2, box_top), (label_x + tw + 2, box_bottom), (0, 255, 0), -1)
+
+        # Draw text
+        cv2.putText(canvas, label, (label_x, label_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, cfg.font_scale, (0, 0, 0), cfg.font_thickness, cv2.LINE_AA)
     custom_img = Image.fromarray(cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB))
     return custom_img
 
