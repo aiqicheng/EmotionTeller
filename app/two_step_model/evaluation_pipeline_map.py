@@ -2,6 +2,7 @@
 import csv, json, math, argparse, ast
 from collections import defaultdict
 from pathlib import Path
+import cv2
 
 # -------------- Box conversions --------------
 def _bbox_to_pixels(bbox, W, H):
@@ -200,16 +201,221 @@ def evaluate(gt_csv, pred_csv, iou_thr=0.5):
     mAP = sum(ap_list) / len(ap_list) if ap_list else 0.0
     return mAP, per_class
 
+# -------------- Visualization --------------
+def _calculate_adaptive_scale(W: int, H: int, base_font_scale: float = 1.0, 
+                               base_thickness: int = 2, reference_size: int = 1000):
+    """
+    Calculate adaptive font scale and thickness based on image resolution.
+    
+    Args:
+        W: Image width
+        H: Image height
+        base_font_scale: Base font scale (default 1.0)
+        base_thickness: Base line thickness (default 2)
+        reference_size: Reference image size for scaling (default 1000 pixels)
+    
+    Returns:
+        Tuple of (adaptive_font_scale, adaptive_thickness)
+    """
+    # Use the smaller dimension to ensure consistent scaling
+    min_dim = min(W, H)
+    # Scale factor based on reference size
+    scale_factor = min_dim / reference_size
+    # Adaptive font scale (clamp to reasonable bounds)
+    adaptive_font_scale = max(0.5, min(3.0, base_font_scale * scale_factor))
+    # Adaptive thickness (ensure it's at least 1)
+    adaptive_thickness = max(1, int(base_thickness * scale_factor))
+    return adaptive_font_scale, adaptive_thickness
+
+def get_class_color(class_name: str):
+    """Return a distinct BGR color for each emotion class.
+    Uses the same color mapping as two_step_pipeline.py for consistency."""
+    normalized = class_name.strip().lower()
+    color_map = {
+        "neutral": (128, 128, 128),    # Gray
+        "happy": (0, 255, 0),          # Green
+        "angry": (0, 0, 255),          # Red
+        "surprise": (255, 165, 0),     # Orange
+        "sad": (0, 255, 255),          # Cyan
+        "fear": (255, 0, 255),         # Magenta
+        "disgust": (0, 128, 255),      # Orange-Red
+    }
+    # Return the color for the class, or default to white if not found
+    return color_map.get(normalized, (255, 255, 255))
+
+def draw_ground_truth(gt_csv: str, image_dir: str, image_filename: str, 
+                     output_path: str = None, font_scale: float = 1.0, 
+                     font_thickness: int = 2, bbox_thickness: int = 4):
+    """
+    Draw ground truth bounding boxes and labels on an image.
+    
+    Args:
+        gt_csv: Path to ground truth CSV file
+        image_dir: Directory containing the images
+        image_filename: Name of the image file to visualize
+        output_path: Path to save annotated image (if None, saves as image_filename_gt_annotated.jpg)
+        font_scale: Font scale for labels
+        font_thickness: Font thickness for labels
+        bbox_thickness: Thickness of bounding box lines
+    
+    Returns:
+        Path to saved annotated image
+    """
+    # Load ground truth data
+    gt_rows = load_csv(gt_csv)
+    gts_per_img = expand_gt_rows(gt_rows)
+    
+    # Find the image in ground truth
+    if image_filename not in gts_per_img:
+        raise ValueError(f"Image '{image_filename}' not found in ground truth CSV")
+    
+    # Load the image
+    image_path = Path(image_dir) / image_filename
+    if not image_path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+    
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise ValueError(f"Could not load image: {image_path}")
+    
+    # Get image dimensions
+    H, W = img.shape[:2]
+    
+    # Calculate adaptive font scale and thickness based on image resolution
+    adaptive_font_scale, adaptive_thickness = _calculate_adaptive_scale(
+        W, H, font_scale, font_thickness
+    )
+    adaptive_bbox_thickness = max(2, int(bbox_thickness * (min(W, H) / 1000.0)))
+    
+    # Get ground truth annotations for this image
+    gt_items = gts_per_img[image_filename]
+    
+    # Draw bounding boxes and labels
+    for item in gt_items:
+        x1, y1, x2, y2 = map(int, item["bbox"])
+        label = item["label"]
+        color = get_class_color(label)
+        
+        # Draw bounding box
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, adaptive_bbox_thickness)
+        
+        # Draw label background and text
+        label_text = f"{label}"
+        (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 
+                                     adaptive_font_scale, adaptive_thickness)
+        cv2.rectangle(img, (x1, y1 - th - 6), (x1 + tw + 4, y1), color, -1)
+        cv2.putText(img, label_text, (x1 + 2, y1 - 4),
+                   cv2.FONT_HERSHEY_SIMPLEX, adaptive_font_scale, (0, 0, 0), 
+                   adaptive_thickness, cv2.LINE_AA)
+    
+    # Save annotated image
+    if output_path is None:
+        stem = Path(image_filename).stem
+        suffix = Path(image_filename).suffix
+        output_path = str(Path(image_dir) / f"{stem}_gt_annotated{suffix}")
+    else:
+        output_path = str(output_path)
+    
+    cv2.imwrite(output_path, img)
+    print(f"Saved annotated image to: {output_path}")
+    return output_path
+
+def draw_all_ground_truth(gt_csv: str, image_dir: str, output_dir: str = None,
+                         font_scale: float = 1.0, font_thickness: int = 2, 
+                         bbox_thickness: int = 4):
+    """
+    Draw ground truth annotations for all images in the CSV.
+    
+    Args:
+        gt_csv: Path to ground truth CSV file
+        image_dir: Directory containing the images
+        output_dir: Directory to save annotated images (if None, saves in image_dir)
+        font_scale: Font scale for labels
+        font_thickness: Font thickness for labels
+        bbox_thickness: Thickness of bounding box lines
+    
+    Returns:
+        List of paths to saved annotated images
+    """
+    gt_rows = load_csv(gt_csv)
+    gts_per_img = expand_gt_rows(gt_rows)
+    
+    if output_dir is None:
+        output_dir = image_dir
+    else:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    output_paths = []
+    for image_filename in gts_per_img.keys():
+        try:
+            stem = Path(image_filename).stem
+            suffix = Path(image_filename).suffix
+            output_path = str(Path(output_dir) / f"{stem}_gt_annotated{suffix}")
+            
+            output_path = draw_ground_truth(
+                gt_csv, image_dir, image_filename, 
+                output_path=output_path,
+                font_scale=font_scale,
+                font_thickness=font_thickness,
+                bbox_thickness=bbox_thickness
+            )
+            output_paths.append(output_path)
+        except Exception as e:
+            print(f"Error processing {image_filename}: {e}")
+    
+    print(f"Processed {len(output_paths)} images")
+    return output_paths
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gt_csv", required=True, help="Ground-truth CSV (your labeled metadata)")
-    ap.add_argument("--pred_csv", required=True, help="Predictions CSV from pipeline")
+    ap.add_argument("--gt_csv", required=False, help="Ground-truth CSV (your labeled metadata)")
+    ap.add_argument("--pred_csv", required=False, help="Predictions CSV from pipeline")
     ap.add_argument("--iou", type=float, default=0.5, help="IoU threshold (default 0.5)")
+    
+    # Visualization options
+    ap.add_argument("--draw_gt", action="store_true", help="Draw ground truth annotations")
+    ap.add_argument("--image_dir", type=str, help="Directory containing images")
+    ap.add_argument("--image_filename", type=str, help="Specific image to visualize (if not provided, visualizes all)")
+    ap.add_argument("--output_dir", type=str, help="Output directory for annotated images")
+    ap.add_argument("--font_scale", type=float, default=1.0, help="Font scale for labels (default 1.0)")
+    ap.add_argument("--font_thickness", type=int, default=2, help="Font thickness for labels (default 2)")
+    ap.add_argument("--bbox_thickness", type=int, default=4, help="Bounding box line thickness (default 4)")
+    
     args = ap.parse_args()
+    
+    # Visualization mode
+    if args.draw_gt:
+        if not args.gt_csv or not args.image_dir:
+            ap.error("--draw_gt requires --gt_csv and --image_dir")
+        
+        if args.image_filename:
+            # Draw single image
+            draw_ground_truth(
+                args.gt_csv, 
+                args.image_dir, 
+                args.image_filename, 
+                output_path=args.output_dir,
+                font_scale=args.font_scale,
+                font_thickness=args.font_thickness,
+                bbox_thickness=args.bbox_thickness
+            )
+        else:
+            # Draw all images
+            draw_all_ground_truth(
+                args.gt_csv, 
+                args.image_dir, 
+                output_dir=args.output_dir,
+                font_scale=args.font_scale,
+                font_thickness=args.font_thickness,
+                bbox_thickness=args.bbox_thickness
+            )
+    elif args.gt_csv and args.pred_csv:
+        # Evaluation mode
+        mAP, per_class = evaluate(args.gt_csv, args.pred_csv, iou_thr=args.iou)
 
-    mAP, per_class = evaluate(args.gt_csv, args.pred_csv, iou_thr=args.iou)
-
-    print(f"mAP@{args.iou:.2f}: {mAP:.4f}")
-    for c, r in per_class.items():
-        print(f"{c:10s} AP={r['AP'] if r['AP'] is not None else 'NA'} "
-              f"(npos={r['npos']}, n_pred={r['n_pred']})")
+        print(f"mAP@{args.iou:.2f}: {mAP:.4f}")
+        for c, r in per_class.items():
+            print(f"{c:10s} AP={r['AP'] if r['AP'] is not None else 'NA'} "
+                  f"(npos={r['npos']}, n_pred={r['n_pred']})")
+    else:
+        ap.error("Must provide either (--draw_gt) or (--gt_csv and --pred_csv)")

@@ -4,3 +4,8 @@ Data/
 __pycache__/
 *.py[cod]
 *.jpg
+\.venv*
+\.git
+
+
+

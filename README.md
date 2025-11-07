@@ -43,11 +43,34 @@ We build an app using streamlit where you can either upload or capture an image 
 ```
 EmotionTeller/
 ├── app/
-│   └── inputs/           # latest inputs and outputs of the app
-|       ├── annotated_output_image.ext # latest annotated image
-|       ├── face_data.csv   # latest output dataframe
-|       ├── input_image.ext # latest input image to the model
-│   └── two_step_model/     # model files for two-stage pipeline
-|       └── BaselineModels
-|             ├── 
+│   ├── app.py                          # Streamlit interface for running models
+│   ├── emotion_teller_demo.ipynb       # Notebook version of the demo UI
+│   ├── inputs/                         # Latest inputs and outputs of the app
+│   │   ├── annotated_output_image.png  # Most recent annotated image
+│   │   ├── faces_data.csv              # Latest output dataframe
+│   │   └── input_image.png             # Latest input image to the model
+│   ├── two_step_model/                 # Two-stage detector + classifier package
+│   │   ├── BaselineModels/             # Pretrained weights and configs
+│   │   │   ├── best_overall.pt         # ResNet18 classifier checkpoint
+│   │   │   ├── deploy.prototxt         # SSD face detector config
+│   │   │   ├── res10_300x300_ssd_iter_140000.caffemodel  # SSD detector weights
+│   │   │   └── yolo11n-face-best.pt    # YOLO-based face detector weights
+│   │   ├── evaluation_pipeline_map.py  # Evaluation helpers and metrics mapping
+│   │   ├── two_step_pipeline.py        # Orchestrates end-to-end pipeline
+│   │   └── two_step_pipeline_example.md   # Detailed docs for the two-step model
+│   └── yolo_model/                     # Fine-tuned YOLO single-stage models
+│       ├── utils.py                    # Shared inference utilities
+│       ├── yolov11m.py                 # Standard YOLOv11m wrapper
+│       └── yolov11m_face.py            # Face-focused YOLOv11m wrapper
+├── Metadata/                           # Dataset metadata tables
+│   ├── test_meta.csv                   # Test split annotations
+│   └── train_meta.csv                  # Training split annotations
+├── YOLO_training/                      # Training logs and outputs for YOLO
+│   └── runs/                           # Experiments, metrics, and weights
+├── ClassificationBaseline_V3.ipynb     # Emotion classification baseline notebook
+├── DataSplit.ipynb                     # Data partitioning exploration
+├── DetectionYOLO.ipynb                 # YOLO detection experiments
+├── main.ipynb                          # Project summary and experiment notes
+├── TwoStepWorkflow.ipynb               # Two-stage pipeline prototyping
+└── utilsJ.py                           # Shared helper utilities
 ```
