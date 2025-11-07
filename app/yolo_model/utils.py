@@ -11,8 +11,6 @@ try:
 except Exception:
     TORCH_AVAILABLE = False
 
-from ultralytics import YOLO
-
 
 ## Helper functions
 def get_available_devices() -> List[str]:
@@ -139,12 +137,6 @@ MAX_DET    = 300
 AGNOSTIC_NMS = False
 FP16 = False
 
-def load_yolo_model():
-    WEIGHTS = Path("../YOLO_training/runs/yolo11m_finetuned2/weights/last.pt")      
-    assert WEIGHTS.exists(), f"Model weights not found at {WEIGHTS.resolve()}"
-    model = YOLO(str(WEIGHTS))
-    return model
-
 
 def run_inference(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataFrame], None]:
     img = image.convert("RGB")
@@ -159,8 +151,4 @@ def run_inference(model, image) -> Union[Tuple[Image.Image,Image.Image, pd.DataF
     df = results_to_df(res)
 
     return ann, df
-    
-def run_model(image: Image.Image = None):
-    model = load_yolo_model()
-    return run_inference(model, image)
     
