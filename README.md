@@ -5,7 +5,7 @@
 - [AIQI CHENG](https://www.linkedin.com/in/aiqi-adia-cheng/)
 - [JULIO CACERES](https://www.linkedin.com/in/julio-caceres-761979184/)
 - [CISIL KARAGUZEL](https://www.linkedin.com/in/cisil-karaguzel/)
-- [Manimugdha Saikia](https://www.linkedin.com/in/manimugdha-saikia-phd-54b455178/)
+- [MANIMUGDHA SAIKIA](https://www.linkedin.com/in/manimugdha-saikia-phd-54b455178/)
 
 ## Overview
 
