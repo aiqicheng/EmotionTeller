@@ -1,7 +1,8 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
-from yolo_model.model import run_model
+from yolo_model.yolov11m import run_yolo11m_model
+from yolo_model.yolov11m_face import run_yolo11m_face_model
 from two_step_model import two_step_pipeline
 from pathlib import Path
 
@@ -64,6 +65,29 @@ def save_on_disk(uploaded_file):
         f.write(uploaded_file.read())
     return save_path
 
+def process_volo_version(model_choice, uploaded_file):
+    ext = uploaded_file.split(".", 1)[1]
+    ann_img_path = "inputs/annotated_output_image." + ext
+    face_df_path = "inputs/faces_data.csv"
+    if st.button("🚀 Run Model"):
+        st.info("⏳ Running the selected model, please wait...")
+        pil_image = Image.open(uploaded_file)
+        if model_choice == "YOLOv11m": 
+            annotated_img, df = run_yolo11m_model(pil_image)
+        else:
+            annotated_img, df = run_yolo11m_face_model(pil_image)
+        annotated_img.save(ann_img_path)
+        df.to_csv(face_df_path)
+        if len(df) != 0:
+            st.image(annotated_img, caption="Annotated Output", width='stretch')
+            st.dataframe(df)
+        else:
+            st.markdown(f"""
+                <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
+                <b> {no_face_message}
+                </div>
+                """, unsafe_allow_html=True)
+
 def app_processing(uploaded_file):
     uploaded_file = save_on_disk(uploaded_file)
     ext = uploaded_file.split(".", 1)[1]
@@ -71,27 +95,15 @@ def app_processing(uploaded_file):
     face_df_path = "inputs/faces_data.csv"
     model_choice = st.selectbox(
         "Select a model to use:",
-        ("YOLOv11", "Two-Step-Model"),
+        ("YOLOv11m", "YOLOv11mFace", "Two-Step-Model"),
         index=None,  # None = no pre-selection
         placeholder="Choose a model..."
     )
     if model_choice is not None:
-        if model_choice == "YOLOv11":
-            if st.button("🚀 Run Model"):
-                st.info("⏳ Running the selected model, please wait...")
-                pil_image = Image.open(uploaded_file)  
-                annotated_img, df = run_model(pil_image)
-                annotated_img.save(ann_img_path)
-                df.to_csv(face_df_path)
-                if len(df) != 0:
-                    st.image(annotated_img, caption="Annotated Output", width='stretch')
-                    st.dataframe(df)
-                else:
-                    st.markdown(f"""
-                        <div style='text-align:center; color:#ff4b1f; font-size:20px;'>
-                        <b> {no_face_message}
-                        </div>
-                        """, unsafe_allow_html=True)
+        if model_choice == "YOLOv11m":
+            process_volo_version(model_choice, uploaded_file)
+        elif model_choice == "YOLOv11mFace":
+            process_volo_version(model_choice, uploaded_file)
         elif model_choice == "Two-Step-Model": 
             if st.button("🚀 Run Model"):
                 st.info("⏳ Running the selected model, please wait...")
