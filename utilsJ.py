@@ -5,7 +5,10 @@ import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import ipywidgets as widgets
+import torch
+from PIL import Image
 from IPython.display import display, clear_output
+from ultralytics.engine.results import Boxes
 
 emo_dic = {'Neutral':0,'Happy':1,'Surprise':2,'Sad':3,'Angry':4,'Fear':5,'Disgust':6}
 
@@ -424,14 +427,12 @@ def detect_metrics(train_combined, test_combined):
     print("Train Metrics:")
     print(f"Precision: {precision_train:.4f}")
     print(f"Recall: {recall_train:.4f}")
-    print(f"mAP50: {map50_train:.4f}")
-    print(f"mAP50-95: {map50_95_train:.4f}")
+    print(f"mAP5: {map50_train:.4f}")
 
     print("\nTest Metrics:")
     print(f"Precision: {precision_test:.4f}")
     print(f"Recall: {recall_test:.4f}")
-    print(f"mAP50: {map50_test:.4f}")
-    print(f"mAP50-95: {map50_95_test:.4f}")
+    print(f"mAP5: {map50_test:.4f}")
     return
 
 def drop_display(train_combined,test_combined):
@@ -492,3 +493,29 @@ def drop_display(train_combined,test_combined):
     on_train_dropdown_change({'type': 'change', 'name': 'value', 'new': train_dropdown.value})
     on_test_dropdown_change({'type': 'change', 'name': 'value', 'new': test_dropdown.value})
     return
+
+class CustomResult:
+    def __init__(self, boxes, orig_shape, names=None):
+        self.boxes = boxes
+        self.orig_shape = orig_shape
+        self.names = names # Include names dictionary for class labels
+
+    def __str__(self):
+        return f"CustomResult object with Boxes:\n{self.boxes}\nOriginal Shape: {self.orig_shape}"
+
+def two_step_to_yolo(gt,preds):
+    results = []
+    for ind, r in enumerate(preds):
+        boxes = r['faces']
+        width = gt['original_width'].iloc[ind]
+        height = gt['original_height'].iloc[ind]
+        if len(boxes) == 0:
+            box_data = torch.empty(0,6, device='cuda:0')
+        else:
+            box_data = torch.tensor([b['bbox_xyxy']+[b['det_conf']]+[float(emo_dic[b['pred_label']])] for b in boxes], device='cuda:0') 
+        original_image_shape = (height,width)
+        custom_boxes = Boxes(box_data, orig_shape=original_image_shape)
+        results.append(CustomResult(boxes=custom_boxes,
+                                            orig_shape=original_image_shape,
+                                            names=emo_dic))
+    return results
