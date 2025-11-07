@@ -33,7 +33,7 @@ Facial expression recognition is a crucial component for improving human-AI inte
 - Two-Stage: This model begins with an object detection model to identify the faces in every picture which is trained using dataset (1) and (2). Then, to every cropped picture, a classification model trained on dataset (3) and (4) is applied. We have two versions of this model, the first one uses OpenCV DNN SSD for object detection whereas the second one uses Yolo11n-face. Both versions use Resnet18 for classification.
 
 ## App
-We build an app using streamlit where you can either upload or capture an image and choose one of our models. It outputs an annotated picture along with a dataframe with information about the bounding boxes and labels. Here is a demonstration of our app running on a fun moment of our team.
+We build an app using streamlit where you can either upload or capture an image and choose one of our models. It outputs an annotated picture along with a dataframe with information about the bounding boxes and labels.
 
 <center> 
 <img src = "app_pic.png", width = '60%', height = '60%' />
